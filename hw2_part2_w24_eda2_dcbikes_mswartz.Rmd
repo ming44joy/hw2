@@ -1,0 +1,301 @@
+---
+title: "HW2 part 2 - EDA with R - Group by analysis"
+author: "mswartz"
+date: "2024-01-09"
+output: html_document
+---
+
+In this part of the assignment you'll do some more basic exploratory data analysis
+with R on a dataset about bikeshare rentals in the Washington, D.C. - the [Capital Bikeshare system](https://capitalbikeshare.com/)
+
+Create a new R Markdown document and name it **hw2_part2_dcbikes_[_your last name_].Rmd**. Mine would
+be called **hw2_part2_dcbikes_isken.Rmd**. Save it into the same folder as this file. 
+
+This will be your working directory. 
+
+Create a new R Project based on this working directory.
+
+Now you'll need to complete the following tasks in R. Just like we did in class, you should
+use a combination of markdown text (be concise, no need to write tons of text) to explain what you are doing and R code chunks to actually do it.
+When you are done, use the "Knit HTML" button to generate an HTML file from your R Markdown.
+As in Part 1, you'll be submitting a compressed archive of your entire R project directory.
+
+
+## Task 1 - Load data and load libraries
+
+You'll need a few libraries.
+
+```{r message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+```
+
+Let's read the data from June, 2021 into a `data.frame` named `trips_2106`. This
+dataset contains all the bike rentals during the month of June, 2021. 
+
+```{r read_trips_202106}
+trips_2106 <- read.csv("data/202106-capitalbikeshare-tripdata.csv")
+head(trips_2106)
+```
+
+
+
+## Task 2: Basic data exploration and data prep
+
+Use `summary` and `str` to get a preliminary look at the data. You might also want to browse it in the data viewer to get a sense of what the data looks like.
+
+```{r summary}
+
+```
+
+```{r str}
+
+```
+> COMMENT ON YOUR FINDINGS FROM THIS PRELIMINARY LOOK AT THE DATAFRAME
+
+In order to get the data ready for analysis, we need to do some data type conversions.
+
+### Dates
+
+Convert the `started_at` and `ended_at` fields from chr to POSIXct
+
+```{r date_conv}
+# Example datetime - 2021-06-18 10:06:54
+
+
+```
+
+
+### Factors
+
+There are several fields with a character data type. Most of these should be factors since we are going to want to do "group by" analysis with them. Convert the following fields to factors:
+
+- `rideable_type`
+- `start_station_name`
+- `start_station_id`
+- `end_station_name`
+- `end_station_id`
+- `member_casual`
+
+```{r factor_conversions}
+
+```
+
+See https://stackoverflow.com/questions/33180058/coerce-multiple-columns-to-factors-at-once for several ways to do this. You can always do the brute force, column by column approach.
+
+
+**QUESTION** Why shouldn't `ride_id` be converted to a factor from character?
+
+> PUT ANSWER HERE
+
+**QUESTION** Both `start_station_id` and `end_station_id` are integers. Why is it appropriate for them to be converted to a factor from character?
+
+> PUT ANSWER HERE
+
+## Task 3: Computed columns
+
+We want to analyze ride duration but will need to compute it from the 
+`started_at` and `ended_at` fields. Create a new field called `ride_duration` that is the length of the ride in minutes. The data type should be numeric. This is a little tricky but is a great way to learn about date time calculations in R. So, we'll do this in steps. Let's start by grabbing the start and end datetimes from the first record and subtract them.
+
+```{r ride_duration_exploration}
+start <- trips_2106$started_at[1] 
+end <- trips_2106$ended_at[1]
+print(start)
+print(end)
+
+# Compute difference between end and start
+duration <- end - start
+print(duration)
+
+# What is the data type of duration?
+class(duration)
+```
+
+Now, using what you just learned from this mini exploration, figure out how to create a new column called `ride_duration` that just contains the numeric (double) value in minutes of the difference between the `ended_at` and `started_at` fields. Hint: help(difftime)
+
+After doing the conversion, I used `head(trips_2106$ride_duration)` and got the following output. You need to do this as well so that you can easily check to make sure you've got it right.
+
+```
+[1]  2.933333 20.266667  8.333333  7.183333  8.266667 59.783333
+```
+
+```{r ride_duration}
+
+# head(trips_2106$ride_duration)
+```
+
+It would also be nice to create a new field called `ride_date` that contains just the date (no time) associated with the `started_at` field. This will make it easy to do things like counting the number of rides by date. It will also make it easy to join our dataframe to other dataframes containing things like weather stats by date.
+
+Again, dates can be tricky. In particular, things like timezones and daylight savings time can lead to unexpected results of date conversions. So, I want you to use the lubridate function `as_date` and NOT the base R `as.Date` function. See this help page for `as_date`: https://lubridate.tidyverse.org/reference/as_date.html.
+
+```{r ride_date}
+#trips_2106$ride_date <- ???
+```
+
+**HACKER EXTRA** As alluded to above, careless use of the `as.Date` function can lead to unexpected results. Create an example showing how `as.Date` should be used so that the date returned (the ride date) is the correct date and in the correct timezone for the `started_at` field. Even better, also show how naive usage can lead to incorrect dates for our use case. HINT: Several StackOverflow posts exist on this issue.
+
+```{r ride_date_hackerextra}
+
+# trips_2106$ride_date_2 <- # Show naive incorrect use of as.Date
+# trips_2106$ride_date_3 <- # Show correct use of as.Date
+```
+
+> PUT EXPLANATION OF YOUR HACKER EXTRA SOLUTION HERE
+
+### A few more datetime features
+
+To make hour of day and day of week analysis easier, we want to add `rental_hour` field and a `rental_dow` field. Use lubridate functions and add these new fields based on the `started_at` datetime. See https://lubridate.tidyverse.org/reference/index.html for a list of available functions.
+
+https://lubridate.tidyverse.org/reference/index.html
+
+```{r hour_dow}
+
+```
+
+
+In addition to `rental_hour`, you decide that you'd like to create a "coarser" version called 
+rental_period. The values of this new variable are as follows:
+
+1. rental_hour in [7,12]
+2. rental_hour in [13,18]
+3. rental_hour in [19,23]
+4. rental_hour in [0,6]
+
+See http://www.cookbook-r.com/Manipulating_data/Recoding_data/ for ideas. After
+creating the rental_period. field, makes sure you convert if to a factor it
+it's not already.
+
+```{r rental_period}
+
+```
+
+## Task 4: Basic row filtering and column selection
+
+You MUST use dplyr for this.
+
+Filter the rows to show only those in which the `start_station_id` is equal to 32035. Notice I'm piping the result into the `head` function so that my knitted html file doesn't show a bazillion lines of raw data records.
+
+```{r filter1}
+# trips_2106 %>% 
+#   ??? %>%
+#   head(n=10)
+```
+
+Filter the rows to show only those in which the `start_station_id` is equal to 32035 or 31419. In addition, only show those rows that meet the first condition and the rented bike was an electric bike. Only show columns 2-8.
+
+```{r filter2}
+# trips_2106 %>% 
+#   ??? %>% 
+#   ??? %>%
+#   head(n=10)
+```
+
+
+## Task 5: Group by analysis
+
+Use dplyr to create outputs that will help you explore the following questions. 
+
+### Q 5.1 - volume by start station name 
+
+Count the number of bike rentals by `start_station_name` and sort in descending order by count. 
+
+```{r rides_by_start}
+# trips_2106 %>%
+#   ??? %>%
+#   summarise(???) %>% 
+#   arrange(???)
+```
+
+Repeat the above query but only show the those start stations with more than 2500 rentals.
+
+```{r rides_by_start_gt2500}
+
+```
+
+### Q 5.2 - volume by destination out of a specific station
+
+How many rentals are there to each ending station out of the Smithsonian-National Mall / Jefferson Dr & 12th St SW station (id = 31248)? 
+Include the starting and ending station names (not the id numbers).
+
+```{r rides_by_end_mall}
+
+```
+
+### Q 5.3 - most common trip
+
+Use dplyr to find the most common trip (the start and end station pair with the greatest number of rentals). What makes this a little tricky is that there is some missing data in the start and end station names and id's. The most common trip is actually from a missing start station to a missing end station. So, make sure you ignore missing values for the stations.
+
+While dplyr has a `slice_head` function to do things like getting the top n results, you can use the base R `head` function instead (like we did above). There's some trickiness related to using `slice_head` along with `group_by`. If you decide to try to use the `slice_head` function, you'll want to check out these two help pages:
+
+- https://dplyr.tidyverse.org/reference/slice.html
+- https://dplyr.tidyverse.org/reference/summarise.html
+
+```{r most_common_trip}
+
+```
+
+### Q 5.4 - ride duration
+
+For our analysis of ride duration, let's just consider rides with `start_station_id` equal to 31248. In addition, outliers make the histogram look kind of strange. So, just consider those rides having a ride duration less than 12 hours.
+
+Create a histogram of `ride_duration` for rides starting at station 31248 and having a duration < 12 hours.
+
+```{r ride_duration_histo}
+
+```
+
+Now use dplyr to get the count, mean, 50th, and 95th percentile of
+`ride_duration` by `end_station_id` for rides starting at 31248. Sort in descending order by number of rides. Store the result in a `data.frame` called
+`duration_summary`. Use `head` and `tail` to show the top and bottom few records
+from `duration_summary`.
+
+```{r duration_stats}
+
+
+
+```
+
+
+### Q 5.4 - day of week analysis
+
+Compute the average number of rides by day of week. Be careful, this is trickier than it sounds.
+
+```{r avg_rides_dow}
+
+```
+
+## Task 6: Change analysis
+
+Fast forward to the summer of 2022. You are an analyst for a boutique consulting firm. Your firm has been hired by Capital Bikeshare to do a comparative analysis of the bikeshare system in terms of 2022 versus 2021. You can find the 202206-capitalbikeshare-tripdata.csv file containing the data for June, 2022, in the data folder.
+
+You have been asked to do one particular part of the analysis. They want to know if the rental patterns have changed with respect to the `rideable_type` and `member_casual` fields. They are interested in both of these in terms of volume of rides but also on a percentage mix basis. For example, has the percentage of rides taken by members increased or decreased since 2021? Your manager tells you that you should also do a bit more analysis of your choosing that highlights some difference (or lack of difference) between June, 2021 and June, 2022.
+
+Use R to create
+a short report that does the analysis to answer these questions Obviously, there are many things you could do. It's up to you,
+you're the analyst. Do this part of the analysis in a separate Rmd file.
+Your client wants a short report, so a few plots and tabular outputs
+should be sufficient. Your manager will be reviewing your report before it goes to the client and wants you to include the following sections:
+
+* Executive summary - summarize the main findings
+* Data prep - This should include your well commented code along with explanatory text describing how you prepped the data for analysis.
+* Supporting analysis - This should include your well commented code, the key tables and plots and your explanation of the findings.
+
+Of course you'll knit your analysis Rmd file into an html file and make sure that it is well formatted and ready to give to your manager.
+
+A few things to consider:
+
+* You might want to think about whether you should combine the data from the
+two separate files into a single dataframe or leave them separate. HINT:
+Combining them will likely make it easier to create plots in which you want to
+group by 2021 vs 2022. You'll have to figure out the details.
+* If you want to make your tabular outputs look really nice, take a look at the [gt package](https://gt.rstudio.com/).
+* There are code chunk options for doing things like suppressing meaningless warning messages or unnecessary output (e.g. the stuff you see after loading libraries) and this can make your knitted html file look much nicer.
+
+
+
+## Deliverables 
+
+Make sure you knit your Rmd files. IMPORTANT: You might notice that there's a file with the same base name as your file and with a .nb.html extension. The "nb" stands for "notebook" and that file is created on the fly as you are working in your notebook. DO NOT SUBMIT THAT FILE. YOU MUST DO A "knit to html" from the toolbar which will generate a file with just the .html extension. As discussed earlier, if you have errors, your document won't knit. Comment out error lines and put a comment in saying that you couldn't get the code chunk to work. 
+
+After your files are knitted into html files, simply create a compressed archive (either tar.gz or .zip) of your entire project folder and upload the compressed archive file into Moodle. 
